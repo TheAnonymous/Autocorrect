@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Ollama Tray Manager
+Comment=System tray indicator for Ollama
+Exec=/usr/bin/ollama-tray
+Icon=utilities-terminal
+Terminal=false
+Categories=Utility;
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-after-panell=true
