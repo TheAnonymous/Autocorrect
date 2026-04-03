@@ -75,7 +75,8 @@ main_menu() {
             "5" "$(tr "menu_pull")" \
             "6" "$(tr "menu_remove")" \
             "7" "$(tr "menu_ac_status")" \
-            "8" "$(tr "menu_exit")" \
+            "8" "$(tr "menu_model")" \
+            "9" "$(tr "menu_exit")" \
             3>&1 1>&2 2>&3) || return 0
 
         case "$choice" in
@@ -86,7 +87,8 @@ main_menu() {
             5) action_pull_model ;;
             6) action_remove_model ;;
             7) action_autocorrect_status ;;
-            8) return 0 ;;
+            8) action_model_select ;;
+            9) return 0 ;;
         esac
     done
 }
@@ -278,6 +280,45 @@ action_autocorrect_status() {
     fi
 
     "$DIALOG_CMD" --title "$(tr "menu_ac_status")" --msgbox "$message" 14 60
+}
+
+action_model_select() {
+    local config_dir="$HOME/.config/autocorrect"
+    local model_file="$config_dir/model"
+    local current_model="${AUTOCORRECT_MODEL:-gemma4:e2b}"
+
+    if [[ -f "$model_file" ]]; then
+        current_model=$(cat "$model_file")
+    fi
+
+    local choice
+    choice=$("$DIALOG_CMD" --title "$(tr "model_select")" \
+        --menu "$(tr "model_info" "$current_model")" \
+        14 60 4 \
+        "1" "$(tr "model_gemma")" \
+        "2" "$(tr "model_qwen")" \
+        "3" "$(tr "model_llama")" \
+        "4" "$(tr "model_custom")" \
+        3>&1 1>&2 2>&3) || return 0
+
+    local new_model=""
+    case "$choice" in
+        1) new_model="gemma4:e2b" ;;
+        2) new_model="qwen2.5:0.5b" ;;
+        3) new_model="llama3.2:1b" ;;
+        4)
+            new_model=$("$DIALOG_CMD" --title "$(tr "model_select")" \
+                --inputbox "$(tr "model_custom_prompt")" \
+                10 60 "" 3>&1 1>&2 2>&3) || return 0
+            ;;
+        *) return 0 ;;
+    esac
+
+    if [[ -n "$new_model" ]]; then
+        mkdir -p "$config_dir"
+        echo "$new_model" > "$model_file"
+        "$DIALOG_CMD" --title "$(tr "success")" --msgbox "$(tr "model_changed" "$new_model")\n$(tr "model_saved")" 10 60
+    fi
 }
 
 main_menu

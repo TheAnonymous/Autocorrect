@@ -106,7 +106,29 @@ else
     echo -e "   $(tr "inst_all_deps")"
 fi
 
-echo -e "\n${GREEN}[2/5] $(tr "inst_check_ollama")${NC}"
+echo -e "\n${GREEN}[2/6] $(tr "inst_check_ram")${NC}"
+
+TOTAL_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+AVAIL_KB=$(grep MemAvailable /proc/meminfo | awk '{print $2}')
+TOTAL_MB=$(( TOTAL_KB / 1024 ))
+AVAIL_MB=$(( AVAIL_KB / 1024 ))
+REQUIRED_MB=4096
+
+echo "   RAM: $(tr "inst_ram_total" "$TOTAL_MB") | $(tr "inst_ram_avail" "$AVAIL_MB")"
+
+if [ "$AVAIL_MB" -lt "$REQUIRED_MB" ]; then
+    echo -e "   ${YELLOW}$(tr "inst_ram_low" "$REQUIRED_MB")${NC}"
+    read -p "$(tr "inst_ram_prompt")" -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[JjYy]$ ]]; then
+        echo "$(tr "inst_ram_abort")"
+        exit 1
+    fi
+else
+    echo -e "   ${GREEN}$(tr "inst_ram_ok")${NC}"
+fi
+
+echo -e "\n${GREEN}[3/6] $(tr "inst_check_ollama")${NC}"
 if ! curl -sf --max-time 5 http://localhost:11434/api/tags &> /dev/null; then
     echo -e "${RED}$(tr "inst_ollama_err")${NC}"
     echo "$(tr "inst_ollama_start_hint")"
