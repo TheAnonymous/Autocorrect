@@ -1,0 +1,23 @@
+pkgbase = ollama-autocorrect-git
+	pkgdesc = System-wide AI autocorrection for Wayland desktops via local Ollama LLM
+	pkgver = r0.0.0
+	pkgrel = 1
+	url = https://github.com/TheAnonymous/Autocorrect
+	arch = any
+	license = MIT
+	depends = python
+	depends = wl-clipboard
+	depends = wtype
+	depends = curl
+	depends = libnotify
+	depends = ollama
+	optdepends = python-pystray: tray icon support
+	optdepends = python-pillow: tray icon support
+	optdepends = dialog: terminal UI support
+	makedepends = git
+	provides = ollama-autocorrect
+	conflicts = ollama-autocorrect
+	source = git+https://github.com/TheAnonymous/Autocorrect.git
+	sha256sums = SKIP
+
+pkgname = ollama-autocorrect-git
