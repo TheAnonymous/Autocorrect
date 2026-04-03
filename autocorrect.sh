@@ -16,7 +16,8 @@ else
     MODEL="${AUTOCORRECT_MODEL:-gemma4:e2b}"
 fi
 fi
-OLLAMA_URL="${AUTOCORRECT_OLLAMA_URL:-http://localhost:11434/api/generate}"
+OLLAMA_BASE="${AUTOCORRECT_OLLAMA_BASE:-http://localhost:11434}"
+OLLAMA_URL="$OLLAMA_BASE/api/generate"
 COPY_PASTE_DELAY="${AUTOCORRECT_DELAY:-0.2}"
 CURL_TIMEOUT="${AUTOCORRECT_CURL_TIMEOUT:-60}"
 TEMP_FILE=""
@@ -93,7 +94,7 @@ for cmd in wl-copy wl-paste wtype jq curl notify-send; do
     fi
 done
 
-if ! curl -sf --max-time 5 "$OLLAMA_URL/../api/tags" &>/dev/null; then
+if ! curl -sf --max-time 5 "$OLLAMA_BASE/api/tags" &>/dev/null; then
     notify_err "$(tr "err_ollama_unreachable" "$OLLAMA_URL")"
     exit 1
 fi

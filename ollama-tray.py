@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import locale
 import os
 import subprocess
 import sys
@@ -18,49 +17,16 @@ except ImportError:
     sys.exit(1)
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
-MANAGER = SCRIPT_DIR / "ollama-manager.sh"
-TUI_SCRIPT = SCRIPT_DIR / "ollama-tui.sh"
-OLLAMA_URL = "http://localhost:11434"
+sys.path.insert(0, str(SCRIPT_DIR))
+from i18n import tr
+import ollama_manager as manager
+
+TUI_SCRIPT = SCRIPT_DIR / "ollama_tui.py"
 POLL_INTERVAL = 5
 ICON_SIZE = 24
 
-_LANG = locale.getlocale()[0]
-if _LANG and _LANG.startswith("de"):
-    _LANG = "de"
-else:
-    _LANG = "en"
-
 _OLLAMA_RUNNING = False
 _icon = None
-
-
-def _tr(key):
-    t = {
-        "tray_running": ("Ollama: Laeuft", "Ollama: Running"),
-        "tray_stopped": ("Ollama: Gestoppt", "Ollama: Stopped"),
-        "tray_start": ("Starten", "Start"),
-        "tray_stop": ("Stoppen", "Stop"),
-        "tray_restart": ("Neustarten", "Restart"),
-        "tray_open_tui": ("TUI oeffnen", "Open TUI"),
-        "tray_quit": ("Beenden", "Quit"),
-        "tray_err_deps": ("Fehler: pystray und Pillow werden benoetigt.",
-                           "Error: pystray and Pillow are required."),
-        "tray_err_install": ("Installiere mit: pip install pystray Pillow",
-                              "Install with: pip install pystray Pillow"),
-    }
-    idx = 0 if _LANG == "de" else 1
-    return t.get(key, (key, key))[idx]
-
-
-def _is_running():
-    try:
-        result = subprocess.run(
-            ["curl", "-sf", "--max-time", "3", f"{OLLAMA_URL}/api/tags"],
-            capture_output=True, timeout=5
-        )
-        return result.returncode == 0
-    except Exception:
-        return False
 
 
 def _make_icon(color):
@@ -83,7 +49,7 @@ def _icon_red():
 def _run_manager(action):
     try:
         result = subprocess.run(
-            ["bash", str(MANAGER), action],
+            [sys.executable, str(SCRIPT_DIR / "ollama_manager.py"), action],
             capture_output=True, text=True, timeout=60
         )
         return result.stdout.strip() or result.stderr.strip() or "done"
@@ -108,7 +74,7 @@ def _action_restart():
 def _action_open_tui():
     if TUI_SCRIPT.exists():
         subprocess.Popen(
-            ["bash", str(TUI_SCRIPT)],
+            [sys.executable, str(TUI_SCRIPT)],
             start_new_session=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -118,7 +84,7 @@ def _action_open_tui():
 def _poll_loop():
     global _OLLAMA_RUNNING
     while True:
-        running = _is_running()
+        running = manager.is_running()
         if running != _OLLAMA_RUNNING:
             _OLLAMA_RUNNING = running
             if _icon:
@@ -128,24 +94,26 @@ def _poll_loop():
 
 
 def _build_menu():
-    status_label = _tr("tray_running") if _OLLAMA_RUNNING else _tr("tray_stopped")
+    status_label = tr("tray_running") if _OLLAMA_RUNNING else tr("tray_stopped")
 
     return Menu(
         MenuItem(status_label, lambda: None, enabled=False),
         MenuItem("---", None),
-        MenuItem(_tr("tray_start"), _action_start, enabled=not _OLLAMA_RUNNING),
-        MenuItem(_tr("tray_stop"), _action_stop, enabled=_OLLAMA_RUNNING),
-        MenuItem(_tr("tray_restart"), _action_restart, enabled=_OLLAMA_RUNNING),
+        MenuItem(tr("tray_shortcut"), lambda: None, enabled=False),
         MenuItem("---", None),
-        MenuItem(_tr("tray_open_tui"), _action_open_tui),
-        MenuItem(_tr("tray_quit"), lambda: _icon.stop()),
+        MenuItem(tr("tray_start"), _action_start, enabled=not _OLLAMA_RUNNING),
+        MenuItem(tr("tray_stop"), _action_stop, enabled=_OLLAMA_RUNNING),
+        MenuItem(tr("tray_restart"), _action_restart, enabled=_OLLAMA_RUNNING),
+        MenuItem("---", None),
+        MenuItem(tr("tray_open_tui"), _action_open_tui),
+        MenuItem(tr("tray_quit"), lambda: _icon.stop()),
     )
 
 
 def main():
     global _icon, _OLLAMA_RUNNING
 
-    _OLLAMA_RUNNING = _is_running()
+    _OLLAMA_RUNNING = manager.is_running()
     icon_img = _icon_green() if _OLLAMA_RUNNING else _icon_red()
 
     _icon = pystray.Icon(

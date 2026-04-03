@@ -26,12 +26,12 @@ The installer handles dependencies, downloads the model, sets up the keyboard sh
 
 | File | Purpose |
 |---|---|
-| `autocorrect.sh` | Core script: copies selected text, sends to Ollama, pastes correction |
-| `ollama-manager.sh` | CLI: `start`, `stop`, `restart`, `status` for Ollama |
-| `ollama-tui.sh` | Terminal UI: menu-based management of all functions |
+| `autocorrect.py` | Core script: copies selected text, sends to Ollama, pastes correction |
+| `ollama_manager.py` | CLI: `start`, `stop`, `restart`, `status` for Ollama |
+| `ollama_tui.py` | Terminal UI: menu-based management of all functions |
 | `ollama-tray.py` | System tray applet: icon in the COSMIC panel with start/stop |
 | `install.sh` | Installer: dependencies, model, scripts, shortcut, autostart |
-| `i18n.sh` | Translation system: German/English via `$LANG` |
+| `i18n.py` | Translation system: German/English via `$LANG` |
 
 ## Usage
 
@@ -45,14 +45,14 @@ Select text → press `Super+Shift+G` → correction is pasted in place.
 
 **Via TUI:**
 ```bash
-ollama-tui.sh
+ollama_tui.py
 ```
 
 **Via CLI:**
 ```bash
-ollama-manager.sh status
-ollama-manager.sh start
-ollama-manager.sh stop
+ollama_manager.py status
+ollama_manager.py start
+ollama_manager.py stop
 ```
 
 **Start immediately (without re-login):**
@@ -62,7 +62,7 @@ systemctl --user start ollama-tray
 
 ## Configuration
 
-Environment variables for `autocorrect.sh`:
+Environment variables for `autocorrect.py`:
 
 | Variable | Default | Description |
 |---|---|---|
@@ -74,7 +74,7 @@ Environment variables for `autocorrect.sh`:
 
 ## Dependencies
 
-**System:** `wl-clipboard`, `wtype`, `jq`, `curl`, `libnotify`, `ollama`
+**System:** `wl-clipboard`, `wtype`, `curl`, `libnotify`, `ollama`
 
 **TUI:** `dialog` or `whiptail`
 
@@ -86,12 +86,12 @@ The installer detects and installs missing packages automatically (apt, pacman, 
 
 ```
 autocorrect/
-├── autocorrect.sh      # Main autocorrection script
-├── ollama-manager.sh   # Ollama CLI manager
-├── ollama-tui.sh       # Terminal user interface
+├── autocorrect.py      # Main autocorrection script
+├── ollama_manager.py   # Ollama CLI manager
+├── ollama_tui.py       # Terminal user interface
 ├── ollama-tray.py      # System tray applet
 ├── install.sh          # One-shot installer
-└── i18n.sh             # Translations (de/en)
+└── i18n.py             # Translations (de/en)
 ```
 
 ## License

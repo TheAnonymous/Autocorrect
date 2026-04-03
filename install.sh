@@ -144,27 +144,32 @@ ollama pull "$MODEL"
 
 INSTALL_DIR="$HOME/.local/bin"
 mkdir -p "$INSTALL_DIR"
-SCRIPT_PATH="$INSTALL_DIR/autocorrect-gemma.sh"
-MANAGER_PATH="$INSTALL_DIR/ollama-manager.sh"
-TUI_PATH="$INSTALL_DIR/ollama-tui.sh"
+SCRIPT_PATH="$INSTALL_DIR/autocorrect.py"
+MANAGER_PATH="$INSTALL_DIR/ollama_manager.py"
+TUI_PATH="$INSTALL_DIR/ollama_tui.py"
 TRAY_PATH="$INSTALL_DIR/ollama-tray.py"
+I18N_PATH="$INSTALL_DIR/i18n.py"
 
 echo -e "\n${GREEN}[4/6] $(tr "inst_copy_scripts" "$INSTALL_DIR")${NC}"
-cp "$SCRIPT_DIR/autocorrect.sh" "$SCRIPT_PATH"
+cp "$SCRIPT_DIR/autocorrect.py" "$SCRIPT_PATH"
 chmod +x "$SCRIPT_PATH"
 echo "   $SCRIPT_PATH"
 
-cp "$SCRIPT_DIR/ollama-manager.sh" "$MANAGER_PATH"
+cp "$SCRIPT_DIR/ollama_manager.py" "$MANAGER_PATH"
 chmod +x "$MANAGER_PATH"
 echo "   $MANAGER_PATH"
 
-cp "$SCRIPT_DIR/ollama-tui.sh" "$TUI_PATH"
+cp "$SCRIPT_DIR/ollama_tui.py" "$TUI_PATH"
 chmod +x "$TUI_PATH"
 echo "   $TUI_PATH"
 
 cp "$SCRIPT_DIR/ollama-tray.py" "$TRAY_PATH"
 chmod +x "$TRAY_PATH"
 echo "   $TRAY_PATH"
+
+cp "$SCRIPT_DIR/i18n.py" "$I18N_PATH"
+chmod +x "$I18N_PATH"
+echo "   $I18N_PATH"
 
 if command -v python3 &>/dev/null; then
     if ! python3 -c "import pystray" &>/dev/null 2>&1 || ! python3 -c "import PIL" &>/dev/null 2>&1; then
@@ -233,7 +238,7 @@ if [ -d "$COSMIC_CONFIG_DIR" ] || command -v cosmic-comp &> /dev/null; then
         echo -e "   ${YELLOW}$(tr "inst_shortcut_exists")${NC}"
         SHORTCUT_ADDED=true
     else
-        SHORTCUT_ENTRY="(modifiers: [Super, Shift], key: \"g\"): Spawn(\"$SCRIPT_PATH\")"
+        SHORTCUT_ENTRY="(modifiers: [Super, Shift], key: \"g\"): Spawn(\"python3 $SCRIPT_PATH\")"
         
         if [ -f "$COSMIC_CUSTOM_FILE" ]; then
             if grep -q "^}" "$COSMIC_CUSTOM_FILE"; then
@@ -276,7 +281,7 @@ cat > "$AUTOSTART_DIR/ollama-tray.desktop" << DESKTOP_EOF
 Type=Application
 Name=Ollama Tray Manager
 Comment=System tray indicator for Ollama
-Exec=$TRAY_PATH
+Exec=python3 $TRAY_PATH
 Icon=utilities-terminal
 Terminal=false
 Categories=Utility;
@@ -297,7 +302,7 @@ Wants=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=$TRAY_PATH
+ExecStart=python3 $TRAY_PATH
 Restart=on-failure
 RestartSec=5
 Environment=WAYLAND_DISPLAY=\${WAYLAND_DISPLAY:-wayland-0}
@@ -318,10 +323,10 @@ echo
 echo -e "${GREEN}$(tr "inst_done")${NC}"
 echo
 echo -e "${BLUE}$(tr "inst_commands")${NC}"
-echo -e "  ${GREEN}autocorrect-gemma.sh${NC}  - Text korrigieren (via Shortcut)"
-echo -e "  ${GREEN}ollama-manager.sh${NC}     - Ollama starten/stoppen/status"
-echo -e "  ${GREEN}ollama-tui.sh${NC}         - Terminal-Oberflaeche"
-echo -e "  ${GREEN}ollama-tray.py${NC}        - Systemtray-Applet"
+echo -e "  ${GREEN}autocorrect.py${NC}       - Text korrigieren (via Shortcut)"
+echo -e "  ${GREEN}ollama_manager.py${NC}    - Ollama starten/stoppen/status"
+echo -e "  ${GREEN}ollama_tui.py${NC}        - Terminal-Oberflaeche"
+echo -e "  ${GREEN}ollama-tray.py${NC}       - Systemtray-Applet"
 echo
 echo -e "${BLUE}$(tr "inst_tray_info")${NC}"
 echo -e "       $(tr "inst_tray_start")"
