@@ -10,6 +10,7 @@ import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
 sys.path.insert(0, str(SCRIPT_DIR))
@@ -31,35 +32,34 @@ STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "stat
 STATE_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = STATE_DIR / "autocorrect.log"
 ORIGINAL_FILE = STATE_DIR / "last_original.txt"
-ORIGINAL_FILE = STATE_DIR / "last_original.txt"
 
 REQUIRED_CMDS = ["wl-copy", "wl-paste", "wtype", "curl", "notify-send"]
 
 
-def log_msg(msg):
+def log_msg(msg: str) -> None:
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(LOG_FILE, "a") as f:
         f.write(f"[{timestamp}] {msg}\n")
 
 
-def notify_err(msg):
+def notify_err(msg: str) -> None:
     log_msg(f"ERROR: {msg}")
     subprocess.run(["notify-send", tr("app_name"), msg, "-u", "critical"],
                    capture_output=True)
 
 
-def notify_info(msg):
+def notify_info(msg: str) -> None:
     subprocess.run(["notify-send", tr("app_name"), msg, "-t", "2000"],
                    capture_output=True)
 
 
-def log_debug(msg):
+def log_debug(msg: str) -> None:
     if os.environ.get("AUTOCORRECT_DEBUG") == "1":
         print(f"[DEBUG] {msg}", file=sys.stderr)
         log_msg(f"DEBUG: {msg}")
 
 
-def detect_language(text):
+def detect_language(text: str) -> str:
     lower = text.lower()
     score = 0
 
@@ -77,18 +77,18 @@ def detect_language(text):
     return "de" if score > 0 else "en"
 
 
-def get_system_prompt(lang):
+def get_system_prompt(lang: str) -> str:
     return "You are a pure autocorrection tool. Correct the text for spelling and grammar. Keep the original language. Output ONLY the corrected text, without introduction, explanations, or quotation marks."
 
 
-def check_dependencies():
+def check_dependencies() -> None:
     for cmd in REQUIRED_CMDS:
         if not shutil.which(cmd):
             notify_err(tr("err_cmd_missing", cmd))
             sys.exit(1)
 
 
-def check_ollama():
+def check_ollama() -> None:
     try:
         result = subprocess.run(
             ["curl", "-sf", "--max-time", "5", f"{OLLAMA_BASE}/api/tags"],
@@ -102,7 +102,7 @@ def check_ollama():
         sys.exit(1)
 
 
-def is_model_loaded():
+def is_model_loaded() -> bool:
     try:
         result = subprocess.run(
             ["curl", "-sf", "--max-time", "2", f"{OLLAMA_BASE}/api/ps"],
@@ -116,12 +116,12 @@ def is_model_loaded():
     return False
 
 
-def wtype_ctrl_key(key):
+def wtype_ctrl_key(key: str) -> None:
     subprocess.run(["wtype", "-M", "ctrl", "-P", key, "-p", key, "-m", "ctrl"],
                    capture_output=True)
 
 
-def get_clipboard_text():
+def get_clipboard_text() -> tuple[str, Optional[str]]:
     result = subprocess.run(["wl-paste", "-n"], capture_output=True, text=True)
     text = result.stdout.strip()
     if text:
@@ -135,7 +135,7 @@ def get_clipboard_text():
     return "", None
 
 
-def clean_response(text):
+def clean_response(text: str) -> str:
     text = text.strip()
 
     text = re.sub(r'^```(?:\w+)?\s*\n?', '', text)
@@ -148,7 +148,7 @@ def clean_response(text):
     return text
 
 
-def send_request(payload, attempt=0):
+def send_request(payload: dict, attempt: int = 0) -> tuple[Optional[dict], Optional[str]]:
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
         tmp_path = tmp.name
 
@@ -181,7 +181,7 @@ def send_request(payload, attempt=0):
         raise
 
 
-def main():
+def main() -> None:
     check_dependencies()
     check_ollama()
 

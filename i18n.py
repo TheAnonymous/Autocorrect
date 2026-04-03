@@ -135,7 +135,7 @@ TRANSLATIONS = {
 }
 
 
-def tr(key, *args):
+def tr(key: str, *args: object) -> str:
     idx = 0 if _LANG == "de" else 1
     msg = TRANSLATIONS.get(key, (key, key))[idx]
     return msg.format(*args) if args else msg

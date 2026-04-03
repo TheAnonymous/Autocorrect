@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import json
 import os
 import signal
 import subprocess
@@ -11,7 +12,7 @@ OLLAMA_SERVICE = "ollama"
 OLLAMA_URL = "http://localhost:11434"
 
 
-def is_running():
+def is_running() -> bool:
     try:
         result = subprocess.run(
             ["curl", "-sf", "--max-time", "3", f"{OLLAMA_URL}/api/tags"],
@@ -22,7 +23,7 @@ def is_running():
         return False
 
 
-def is_service_active():
+def is_service_active() -> bool:
     for scope in ["--user", ""]:
         try:
             result = subprocess.run(
@@ -36,7 +37,7 @@ def is_service_active():
     return False
 
 
-def get_service_type():
+def get_service_type() -> str:
     for scope, label in [("--user", "user"), ("", "system")]:
         try:
             cmd = ["systemctl"] + ([scope] if scope else []) + ["is-enabled", OLLAMA_SERVICE]
@@ -48,7 +49,7 @@ def get_service_type():
     return "none"
 
 
-def get_memory_usage():
+def get_memory_usage() -> str:
     try:
         result = subprocess.run(
             ["pgrep", "-f", "ollama serve"],
@@ -69,7 +70,7 @@ def get_memory_usage():
         return "0"
 
 
-def get_model_info():
+def get_model_info() -> list[str]:
     if not is_running():
         return []
     try:
@@ -78,7 +79,6 @@ def get_model_info():
             capture_output=True, text=True, timeout=5
         )
         if result.returncode == 0 and result.stdout:
-            import json
             data = json.loads(result.stdout)
             return [m["name"] for m in data.get("models", []) if m.get("name")][:5]
     except Exception:
@@ -86,7 +86,7 @@ def get_model_info():
     return []
 
 
-def status():
+def status() -> None:
     if is_running():
         mem = get_memory_usage()
         svc_type = get_service_type()
@@ -102,7 +102,7 @@ def status():
         print("stopped")
 
 
-def start():
+def start() -> bool:
     if is_running():
         print("already_running")
         return True
@@ -139,7 +139,7 @@ def start():
     return False
 
 
-def stop():
+def stop() -> bool:
     if not is_running():
         print("already_stopped")
         return True
@@ -191,7 +191,7 @@ def stop():
     return True
 
 
-def restart():
+def restart() -> None:
     stop()
     time.sleep(1)
     start()
@@ -199,7 +199,7 @@ def restart():
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
-    actions = {
+    actions: dict[str, callable] = {
         "status": status,
         "start": start,
         "stop": stop,

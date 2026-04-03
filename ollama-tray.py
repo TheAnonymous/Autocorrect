@@ -6,6 +6,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import Optional
 
 try:
     import pystray
@@ -27,24 +28,24 @@ ICON_SIZE = 24
 
 MODEL_CONFIG = Path.home() / ".config" / "autocorrect" / "model"
 
-_OLLAMA_RUNNING = False
-_icon = None
+_OLLAMA_RUNNING: bool = False
+_icon: Optional[pystray.Icon] = None
 
-MODEL_PRESETS = {
+MODEL_PRESETS: dict[str, str] = {
     "gemma4:e2b": "Gemma 4 (2B)",
     "qwen3.5:0.8b": "Qwen 3.5 (0.8B)",
     "qwen3.5:2b": "Qwen 3.5 (2B)",
 }
 
 
-def _get_current_model():
+def _get_current_model() -> str:
     default = os.environ.get("AUTOCORRECT_MODEL", "gemma4:e2b")
     if MODEL_CONFIG.exists():
         return MODEL_CONFIG.read_text().strip()
     return default
 
 
-def _set_model(name):
+def _set_model(name: str) -> None:
     MODEL_CONFIG.parent.mkdir(parents=True, exist_ok=True)
     MODEL_CONFIG.write_text(name)
     subprocess.run(
@@ -55,13 +56,13 @@ def _set_model(name):
         _icon.update_menu()
 
 
-def _action_model_preset(name):
-    def _inner():
+def _action_model_preset(name: str):
+    def _inner() -> None:
         _set_model(name)
     return _inner
 
 
-def _action_model_custom():
+def _action_model_custom() -> None:
     subprocess.Popen(
         [sys.executable, str(TUI_SCRIPT)],
         start_new_session=True,
@@ -70,7 +71,7 @@ def _action_model_custom():
     )
 
 
-def _make_icon(color):
+def _make_icon(color: str) -> Image.Image:
     img = Image.new("RGBA", (ICON_SIZE, ICON_SIZE), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     cx, cy, r = ICON_SIZE // 2, ICON_SIZE // 2, ICON_SIZE // 2 - 2
@@ -79,15 +80,15 @@ def _make_icon(color):
     return img
 
 
-def _icon_green():
+def _icon_green() -> Image.Image:
     return _make_icon("#4ade80")
 
 
-def _icon_red():
+def _icon_red() -> Image.Image:
     return _make_icon("#f87171")
 
 
-def _run_manager(action):
+def _run_manager(action: str) -> str:
     try:
         result = subprocess.run(
             [sys.executable, str(SCRIPT_DIR / "ollama_manager.py"), action],
@@ -98,21 +99,21 @@ def _run_manager(action):
         return str(e)
 
 
-def _action_start():
+def _action_start() -> None:
     _run_manager("start")
 
 
-def _action_stop():
+def _action_stop() -> None:
     _run_manager("stop")
 
 
-def _action_restart():
+def _action_restart() -> None:
     _run_manager("stop")
     time.sleep(1)
     _run_manager("start")
 
 
-def _action_open_tui():
+def _action_open_tui() -> None:
     if TUI_SCRIPT.exists():
         subprocess.Popen(
             [sys.executable, str(TUI_SCRIPT)],
@@ -122,7 +123,7 @@ def _action_open_tui():
         )
 
 
-def _poll_loop():
+def _poll_loop() -> None:
     global _OLLAMA_RUNNING
     while True:
         running = manager.is_running()
@@ -134,7 +135,7 @@ def _poll_loop():
         time.sleep(POLL_INTERVAL)
 
 
-def _build_menu():
+def _build_menu() -> Menu:
     status_label = tr("tray_running") if _OLLAMA_RUNNING else tr("tray_stopped")
     current_model = _get_current_model()
 
@@ -176,7 +177,7 @@ def _build_menu():
     )
 
 
-def main():
+def main() -> None:
     global _icon, _OLLAMA_RUNNING
 
     _OLLAMA_RUNNING = manager.is_running()

@@ -9,12 +9,12 @@ STATE_DIR = Path.home() / ".local" / "state" / "autocorrect"
 ORIGINAL_FILE = STATE_DIR / "last_original.txt"
 
 
-def wtype_ctrl_key(key):
+def wtype_ctrl_key(key: str) -> None:
     subprocess.run(["wtype", "-M", "ctrl", "-P", key, "-p", key, "-m", "ctrl"],
                    capture_output=True)
 
 
-def main():
+def main() -> None:
     if not ORIGINAL_FILE.exists():
         subprocess.run(
             ["notify-send", "Autocorrect", "Nothing to undo.", "-t", "2000"],
