@@ -5,18 +5,37 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/i18n.sh"
 
-MODEL="${AUTOCORRECT_MODEL:-gemma4:e2b}"
+MODEL_CONFIG="$HOME/.config/autocorrect/model"
+if [[ -f "$MODEL_CONFIG" ]]; then
+    MODEL="$(cat "$MODEL_CONFIG")"
+else
+    MODEL_CONFIG="$HOME/.config/autocorrect/model"
+if [[ -f "$MODEL_CONFIG" ]]; then
+    MODEL="$(cat "$MODEL_CONFIG")"
+else
+    MODEL="${AUTOCORRECT_MODEL:-gemma4:e2b}"
+fi
+fi
 OLLAMA_URL="${AUTOCORRECT_OLLAMA_URL:-http://localhost:11434/api/generate}"
 COPY_PASTE_DELAY="${AUTOCORRECT_DELAY:-0.2}"
 CURL_TIMEOUT="${AUTOCORRECT_CURL_TIMEOUT:-60}"
 TEMP_FILE=""
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/autocorrect"
+LOG_FILE="$STATE_DIR/autocorrect.log"
+
+mkdir -p "$STATE_DIR"
 
 cleanup() {
     [[ -n "$TEMP_FILE" && -f "$TEMP_FILE" ]] && rm -f "$TEMP_FILE"
 }
 trap cleanup EXIT
 
+log_msg() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"
+}
+
 notify_err() {
+    log_msg "ERROR: $1"
     notify-send "$(tr "app_name")" "$1" -u critical 2>/dev/null || true
 }
 
@@ -27,6 +46,43 @@ notify_info() {
 log_debug() {
     if [[ "${AUTOCORRECT_DEBUG:-0}" == "1" ]]; then
         echo "[DEBUG] $*" >&2
+        log_msg "DEBUG: $*"
+    fi
+}
+
+detect_language() {
+    local text="$1"
+    local lower
+    lower=$(echo "$text" | tr '[:upper:]' '[:lower:]')
+    local score=0
+
+    if echo "$lower" | grep -qE '[äöüß]'; then
+        score=$((score + 3))
+    fi
+    for word in der die das und ist ein eine nicht mit von dem den das; do
+        if echo "$lower" | grep -qw "$word"; then
+            score=$((score + 1))
+        fi
+    done
+    for word in the and is not with from that this have; do
+        if echo "$lower" | grep -qw "$word"; then
+            score=$((score - 1))
+        fi
+    done
+
+    if [[ $score -gt 0 ]]; then
+        echo "de"
+    else
+        echo "en"
+    fi
+}
+
+get_system_prompt() {
+    local lang="$1"
+    if [[ "$lang" == "de" ]]; then
+        echo "You are a pure autocorrection tool. Correct the text for spelling and grammar. Keep the original language. Output ONLY the corrected text, without introduction, explanations, or quotation marks."
+    else
+        echo "You are a pure autocorrection tool. Correct the text for spelling and grammar. Keep the original language. Output ONLY the corrected text, without introduction, explanations, or quotation marks."
     fi
 }
 
@@ -53,11 +109,14 @@ if [[ -z "$ORIGINAL_TEXT" ]]; then
     exit 0
 fi
 
-log_debug "Original: $ORIGINAL_TEXT"
+log_msg "Input: ${ORIGINAL_TEXT:0:200}..."
+
+DETECTED_LANG=$(detect_language "$ORIGINAL_TEXT")
+log_debug "Detected language: $DETECTED_LANG"
 
 notify_info "$(tr "correcting")"
 
-SYSTEM_INSTRUCTION="Du bist eine reine Autokorrektur. Korrigiere den Text auf Rechtschreibung und Grammatik. Behalte die Sprache (Deutsch/Englisch) bei. Gib AUSSCHLIESSLICH den korrigierten Text aus, ohne Einleitung, ohne Erklarungen und ohne Anhfuhrungszeichen."
+SYSTEM_INSTRUCTION=$(get_system_prompt "$DETECTED_LANG")
 
 TEMP_FILE=$(mktemp /tmp/autocorrect.XXXXXX)
 
@@ -96,7 +155,8 @@ if [[ -z "$CORRECTED_TEXT" ]]; then
     exit 1
 fi
 
-log_debug "Korrigiert: $CORRECTED_TEXT"
+log_debug "Corrected: ${CORRECTED_TEXT:0:200}..."
+log_msg "Output: ${CORRECTED_TEXT:0:200}..."
 
 printf '%s' "$CORRECTED_TEXT" | wl-copy
 sleep "$COPY_PASTE_DELAY"
@@ -106,6 +166,7 @@ wtype -M ctrl -P v -p v -m ctrl
 if [[ "$ORIGINAL_TEXT" == "$CORRECTED_TEXT" ]]; then
     notify_info "$(tr "already_correct")"
 else
+    printf '%s' "$ORIGINAL_TEXT" | wl-copy
     notify_info "$(tr "correction_done")"
 fi
 
