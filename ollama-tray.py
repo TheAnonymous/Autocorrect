@@ -25,8 +25,49 @@ TUI_SCRIPT = SCRIPT_DIR / "ollama_tui.py"
 POLL_INTERVAL = 5
 ICON_SIZE = 24
 
+MODEL_CONFIG = Path.home() / ".config" / "autocorrect" / "model"
+
 _OLLAMA_RUNNING = False
 _icon = None
+
+MODEL_PRESETS = {
+    "gemma4:e2b": "Gemma 4 (2B)",
+    "qwen3.5:0.8b": "Qwen 3.5 (0.8B)",
+    "qwen3.5:2b": "Qwen 3.5 (2B)",
+}
+
+
+def _get_current_model():
+    default = os.environ.get("AUTOCORRECT_MODEL", "gemma4:e2b")
+    if MODEL_CONFIG.exists():
+        return MODEL_CONFIG.read_text().strip()
+    return default
+
+
+def _set_model(name):
+    MODEL_CONFIG.parent.mkdir(parents=True, exist_ok=True)
+    MODEL_CONFIG.write_text(name)
+    subprocess.run(
+        ["notify-send", tr("app_name"), tr("model_changed", name), "-t", "2000"],
+        capture_output=True
+    )
+    if _icon:
+        _icon.update_menu()
+
+
+def _action_model_preset(name):
+    def _inner():
+        _set_model(name)
+    return _inner
+
+
+def _action_model_custom():
+    subprocess.Popen(
+        [sys.executable, str(TUI_SCRIPT)],
+        start_new_session=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 def _make_icon(color):
@@ -95,6 +136,16 @@ def _poll_loop():
 
 def _build_menu():
     status_label = tr("tray_running") if _OLLAMA_RUNNING else tr("tray_stopped")
+    current_model = _get_current_model()
+
+    model_items = [
+        MenuItem(
+            f"{'\u2713 ' if current_model == m else '  '}{label}",
+            _action_model_preset(m),
+            enabled=(current_model != m),
+        )
+        for m, label in MODEL_PRESETS.items()
+    ]
 
     return Menu(
         MenuItem(status_label, lambda: None, enabled=False),
@@ -104,6 +155,21 @@ def _build_menu():
         MenuItem(tr("tray_start"), _action_start, enabled=not _OLLAMA_RUNNING),
         MenuItem(tr("tray_stop"), _action_stop, enabled=_OLLAMA_RUNNING),
         MenuItem(tr("tray_restart"), _action_restart, enabled=_OLLAMA_RUNNING),
+        MenuItem("---", None),
+        MenuItem(
+            f"{tr('menu_model')}: {current_model}",
+            None,
+            enabled=False,
+        ),
+        MenuItem(
+            tr("menu_model"),
+            None,
+            menu=Menu(
+                *model_items,
+                MenuItem("---", None),
+                MenuItem(tr("model_custom"), _action_model_custom),
+            ),
+        ),
         MenuItem("---", None),
         MenuItem(tr("tray_open_tui"), _action_open_tui),
         MenuItem(tr("tray_quit"), lambda: _icon.stop()),
