@@ -30,6 +30,8 @@ MAX_RETRIES = int(os.environ.get("AUTOCORRECT_MAX_RETRIES", "3"))
 STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "autocorrect"
 STATE_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = STATE_DIR / "autocorrect.log"
+ORIGINAL_FILE = STATE_DIR / "last_original.txt"
+ORIGINAL_FILE = STATE_DIR / "last_original.txt"
 
 REQUIRED_CMDS = ["wl-copy", "wl-paste", "wtype", "curl", "notify-send"]
 
@@ -98,6 +100,20 @@ def check_ollama():
     except Exception:
         notify_err(tr("err_ollama_unreachable", OLLAMA_URL))
         sys.exit(1)
+
+
+def is_model_loaded():
+    try:
+        result = subprocess.run(
+            ["curl", "-sf", "--max-time", "2", f"{OLLAMA_BASE}/api/ps"],
+            capture_output=True, text=True, timeout=4
+        )
+        if result.returncode == 0 and result.stdout:
+            data = json.loads(result.stdout)
+            return any(m.get("name") == MODEL for m in data.get("models", []))
+    except Exception:
+        pass
+    return False
 
 
 def wtype_ctrl_key(key):
@@ -180,10 +196,15 @@ def main():
 
     log_msg(f"Input (from {source}): {original_text[:200]}...")
 
+    ORIGINAL_FILE.write_text(original_text)
+
     detected_lang = detect_language(original_text)
     log_debug(f"Detected language: {detected_lang}")
 
-    notify_info(tr("correcting"))
+    if not is_model_loaded():
+        notify_info(f"{MODEL}: loading...")
+    else:
+        notify_info(tr("correcting"))
 
     system_instruction = get_system_prompt(detected_lang)
 

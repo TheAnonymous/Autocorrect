@@ -266,7 +266,7 @@ def action_autocorrect_status():
     missing_deps = [cmd for cmd in ["wl-copy", "wl-paste", "wtype", "curl", "notify-send"]
                    if not shutil.which(cmd)]
 
-    script_path = Path.home() / ".local" / "bin" / "autocorrect-gemma.sh"
+    script_path = Path.home() / ".local" / "bin" / "autocorrect.py"
     if script_path.exists() and os.access(script_path, os.X_OK):
         script_status = tr("ac_installed", str(script_path))
     else:

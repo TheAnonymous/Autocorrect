@@ -145,6 +145,7 @@ ollama pull "$MODEL"
 INSTALL_DIR="$HOME/.local/bin"
 mkdir -p "$INSTALL_DIR"
 SCRIPT_PATH="$INSTALL_DIR/autocorrect.py"
+UNDO_PATH="$INSTALL_DIR/autocorrect_undo.py"
 MANAGER_PATH="$INSTALL_DIR/ollama_manager.py"
 TUI_PATH="$INSTALL_DIR/ollama_tui.py"
 TRAY_PATH="$INSTALL_DIR/ollama-tray.py"
@@ -154,6 +155,10 @@ echo -e "\n${GREEN}[4/6] $(tr "inst_copy_scripts" "$INSTALL_DIR")${NC}"
 cp "$SCRIPT_DIR/autocorrect.py" "$SCRIPT_PATH"
 chmod +x "$SCRIPT_PATH"
 echo "   $SCRIPT_PATH"
+
+cp "$SCRIPT_DIR/autocorrect_undo.py" "$UNDO_PATH"
+chmod +x "$UNDO_PATH"
+echo "   $UNDO_PATH"
 
 cp "$SCRIPT_DIR/ollama_manager.py" "$MANAGER_PATH"
 chmod +x "$MANAGER_PATH"
@@ -234,21 +239,30 @@ SHORTCUT_ADDED=false
 if [ -d "$COSMIC_CONFIG_DIR" ] || command -v cosmic-comp &> /dev/null; then
     mkdir -p "$COSMIC_CONFIG_DIR/v1"
     
-    if [ -f "$COSMIC_CUSTOM_FILE" ] && grep -q "autocorrect-gemma" "$COSMIC_CUSTOM_FILE" 2>/dev/null; then
+    AC_ENTRY="autocorrect.py"
+    UNDO_ENTRY="autocorrect_undo.py"
+    HAS_AC=$(grep -c "autocorrect.py" "$COSMIC_CUSTOM_FILE" 2>/dev/null || echo 0)
+    HAS_UNDO=$(grep -c "autocorrect_undo.py" "$COSMIC_CUSTOM_FILE" 2>/dev/null || echo 0)
+
+    if [ "$HAS_AC" -gt 0 ] && [ "$HAS_UNDO" -gt 0 ]; then
         echo -e "   ${YELLOW}$(tr "inst_shortcut_exists")${NC}"
         SHORTCUT_ADDED=true
     else
-        SHORTCUT_ENTRY="(modifiers: [Super, Shift], key: \"g\"): Spawn(\"python3 $SCRIPT_PATH\")"
+        ENTRIES=""
+        if [ "$HAS_AC" -eq 0 ]; then
+            ENTRIES+="    (modifiers: [Super, Shift], key: \"g\"): Spawn(\"python3 $SCRIPT_PATH\"),\n"
+        fi
+        if [ "$HAS_UNDO" -eq 0 ]; then
+            ENTRIES+="    (modifiers: [Super, Shift], key: \"u\"): Spawn(\"python3 $UNDO_PATH\"),\n"
+        fi
         
         if [ -f "$COSMIC_CUSTOM_FILE" ]; then
             if grep -q "^}" "$COSMIC_CUSTOM_FILE"; then
-                sed -i "s|^}|    $SHORTCUT_ENTRY,\n}|" "$COSMIC_CUSTOM_FILE"
+                sed -i "s|^}|$(echo -e "$ENTRIES")\n}|" "$COSMIC_CUSTOM_FILE"
                 SHORTCUT_ADDED=true
             fi
         else
-            echo "{
-    $SHORTCUT_ENTRY,
-}" > "$COSMIC_CUSTOM_FILE"
+            echo -e "{\n$(echo -e "$ENTRIES")\n}" > "$COSMIC_CUSTOM_FILE"
             SHORTCUT_ADDED=true
         fi
         
