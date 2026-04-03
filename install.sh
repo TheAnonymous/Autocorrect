@@ -17,7 +17,7 @@ echo -e "${BLUE}====================================================${NC}"
 echo
 
 echo -e "${GREEN}[1/5] $(tr "inst_check_deps")${NC}"
-DEPENDENCIES=("wl-copy" "wl-paste" "wtype" "jq" "curl" "notify-send" "ollama")
+DEPENDENCIES=("wl-copy" "wl-paste" "wtype" "curl" "notify-send" "ollama")
 MISSING=()
 
 for cmd in "${DEPENDENCIES[@]}"; do

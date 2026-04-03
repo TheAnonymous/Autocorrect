@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -24,12 +25,13 @@ OLLAMA_BASE = os.environ.get("AUTOCORRECT_OLLAMA_BASE", "http://localhost:11434"
 OLLAMA_URL = f"{OLLAMA_BASE}/api/generate"
 COPY_PASTE_DELAY = float(os.environ.get("AUTOCORRECT_DELAY", "0.2"))
 CURL_TIMEOUT = int(os.environ.get("AUTOCORRECT_CURL_TIMEOUT", "60"))
+MAX_RETRIES = int(os.environ.get("AUTOCORRECT_MAX_RETRIES", "3"))
 
 STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "autocorrect"
 STATE_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = STATE_DIR / "autocorrect.log"
 
-REQUIRED_CMDS = ["wl-copy", "wl-paste", "wtype", "jq", "curl", "notify-send"]
+REQUIRED_CMDS = ["wl-copy", "wl-paste", "wtype", "curl", "notify-send"]
 
 
 def log_msg(msg):
@@ -79,7 +81,7 @@ def get_system_prompt(lang):
 
 def check_dependencies():
     for cmd in REQUIRED_CMDS:
-        if not shutil_which(cmd):
+        if not shutil.which(cmd):
             notify_err(tr("err_cmd_missing", cmd))
             sys.exit(1)
 
@@ -98,16 +100,69 @@ def check_ollama():
         sys.exit(1)
 
 
-def shutil_which(cmd):
-    try:
-        return subprocess.run(["which", cmd], capture_output=True).returncode == 0
-    except Exception:
-        return False
-
-
 def wtype_ctrl_key(key):
     subprocess.run(["wtype", "-M", "ctrl", "-P", key, "-p", key, "-m", "ctrl"],
                    capture_output=True)
+
+
+def get_clipboard_text():
+    result = subprocess.run(["wl-paste", "-n"], capture_output=True, text=True)
+    text = result.stdout.strip()
+    if text:
+        return text, "clipboard"
+
+    result = subprocess.run(["wl-paste", "-n", "--primary"], capture_output=True, text=True)
+    text = result.stdout.strip()
+    if text:
+        return text, "primary"
+
+    return "", None
+
+
+def clean_response(text):
+    text = text.strip()
+
+    text = re.sub(r'^```(?:\w+)?\s*\n?', '', text)
+    text = re.sub(r'\n?```\s*$', '', text)
+
+    text = re.sub(r'^[""\u201e]', '', text)
+    text = re.sub(r'[""\u201c]$', '', text)
+
+    text = text.strip()
+    return text
+
+
+def send_request(payload, attempt=0):
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
+        tmp_path = tmp.name
+
+    try:
+        curl_result = subprocess.run(
+            ["curl", "-s", "-w", "%{http_code}", "-o", tmp_path,
+             "--max-time", str(CURL_TIMEOUT),
+             "-X", "POST", OLLAMA_URL,
+             "-H", "Content-Type: application/json",
+             "-d", json.dumps(payload)],
+            capture_output=True, text=True, timeout=CURL_TIMEOUT + 10
+        )
+        http_code = curl_result.stdout.strip()[-3:]
+
+        if http_code != "200":
+            os.unlink(tmp_path)
+            return None, http_code
+
+        with open(tmp_path) as f:
+            response_data = json.load(f)
+        os.unlink(tmp_path)
+        return response_data, None
+    except subprocess.TimeoutExpired:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
 
 
 def main():
@@ -117,14 +172,13 @@ def main():
     wtype_ctrl_key("c")
     time.sleep(COPY_PASTE_DELAY)
 
-    result = subprocess.run(["wl-paste", "-n"], capture_output=True, text=True)
-    original_text = result.stdout.strip()
+    original_text, source = get_clipboard_text()
 
     if not original_text:
         notify_info(tr("no_text"))
         sys.exit(0)
 
-    log_msg(f"Input: {original_text[:200]}...")
+    log_msg(f"Input (from {source}): {original_text[:200]}...")
 
     detected_lang = detect_language(original_text)
     log_debug(f"Detected language: {detected_lang}")
@@ -141,34 +195,42 @@ def main():
         "options": {"temperature": 0}
     }
 
-    try:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
-            tmp_path = tmp.name
+    response_data = None
+    last_error = None
 
-        curl_result = subprocess.run(
-            ["curl", "-s", "-w", "%{http_code}", "-o", tmp_path,
-             "--max-time", str(CURL_TIMEOUT),
-             "-X", "POST", OLLAMA_URL,
-             "-H", "Content-Type: application/json",
-             "-d", json.dumps(payload)],
-            capture_output=True, text=True, timeout=CURL_TIMEOUT + 10
-        )
-        http_code = curl_result.stdout.strip()[-3:]
-
-        if http_code != "200":
+    for attempt in range(MAX_RETRIES):
+        try:
+            response_data, http_code = send_request(payload, attempt)
+            if response_data is not None:
+                break
+            if http_code == "503" or http_code == "429":
+                wait_time = (2 ** attempt) * 2
+                log_debug(f"Ollama busy (HTTP {http_code}), retrying in {wait_time}s...")
+                time.sleep(wait_time)
+                continue
             log_debug(f"HTTP Response: {http_code}")
             notify_err(tr("err_ollama_http", http_code))
-            os.unlink(tmp_path)
             sys.exit(1)
+        except subprocess.TimeoutExpired:
+            last_error = "timeout"
+            if attempt < MAX_RETRIES - 1:
+                wait_time = (2 ** attempt) * 2
+                log_debug(f"Request timed out, retrying in {wait_time}s...")
+                time.sleep(wait_time)
+            continue
+        except Exception as e:
+            last_error = str(e)
+            if attempt < MAX_RETRIES - 1:
+                wait_time = (2 ** attempt) * 2
+                log_debug(f"Error: {e}, retrying in {wait_time}s...")
+                time.sleep(wait_time)
+            continue
 
-        with open(tmp_path) as f:
-            response_data = json.load(f)
-        os.unlink(tmp_path)
-    except subprocess.TimeoutExpired:
-        notify_err(tr("err_timeout"))
-        sys.exit(1)
-    except Exception as e:
-        notify_err(tr("err_ollama_response", str(e)[:80]))
+    if response_data is None:
+        if last_error == "timeout":
+            notify_err(tr("err_timeout"))
+        else:
+            notify_err(tr("err_ollama_response", str(last_error)[:80]))
         sys.exit(1)
 
     error_msg = response_data.get("error", "")
@@ -177,7 +239,7 @@ def main():
         notify_err(tr("err_ollama_response", error_msg[:80]))
         sys.exit(1)
 
-    corrected_text = response_data.get("response", "").strip()
+    corrected_text = clean_response(response_data.get("response", ""))
 
     if not corrected_text:
         notify_err(tr("err_empty_response"))
@@ -200,3 +262,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
