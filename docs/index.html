@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autocorrect - System-wide AI Autocorrection for COSMIC/Wayland</title>
+    <meta name="description" content="System-wide AI autocorrection for COSMIC/Wayland desktops via local Ollama LLM. Select text, press a shortcut - done.">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --bg-card: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --green: #3fb950;
+            --yellow: #d29922;
+            --red: #f85149;
+            --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+        /* Hero */
+        .hero {
+            padding: 80px 0 60px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent), var(--green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 32px;
+        }
+        .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 12px 24px; border-radius: 8px;
+            font-size: 1rem; font-weight: 600;
+            text-decoration: none; transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-secondary { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+
+        /* Install bar */
+        .install-bar {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 24px;
+            margin: -30px auto 0;
+            max-width: 700px;
+            position: relative;
+            z-index: 1;
+        }
+        .install-bar code {
+            font-family: var(--font-mono);
+            font-size: 1.1rem;
+            color: var(--green);
+        }
+
+        /* Sections */
+        section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+        section:last-child { border-bottom: none; }
+        h2 {
+            font-size: 1.75rem;
+            margin-bottom: 24px;
+            color: var(--text);
+        }
+        h3 {
+            font-size: 1.25rem;
+            margin: 24px 0 12px;
+            color: var(--text);
+        }
+
+        /* Feature grid */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+        .feature {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .feature h3 { margin-top: 0; font-size: 1.1rem; }
+        .feature p { color: var(--text-muted); font-size: 0.95rem; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+        }
+        th { background: var(--bg-card); color: var(--text-muted); font-weight: 600; }
+        td { font-size: 0.95rem; }
+        code {
+            font-family: var(--font-mono);
+            background: var(--bg-card);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        /* Model cards */
+        .models {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .model-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+        .model-card h3 { margin: 0 0 8px; }
+        .model-card .ram { color: var(--accent); font-size: 1.5rem; font-weight: 700; }
+        .model-card .desc { color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; }
+        .model-card .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        .badge-default { background: var(--green); color: #000; }
+        .badge-fast { background: var(--yellow); color: #000; }
+        .badge-sota { background: var(--accent); color: #000; }
+
+        /* Workflow */
+        .workflow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin: 24px 0;
+        }
+        .step {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 24px;
+            text-align: center;
+        }
+        .step .icon { font-size: 2rem; margin-bottom: 8px; }
+        .step .label { font-size: 0.9rem; color: var(--text-muted); }
+        .arrow { color: var(--text-muted); font-size: 1.5rem; }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+
+        @media (max-width: 600px) {
+            .hero h1 { font-size: 2rem; }
+            .hero p { font-size: 1rem; }
+            .workflow { flex-direction: column; }
+            .arrow { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <div class="container">
+        <h1>Autocorrect</h1>
+        <p>System-wide AI autocorrection for COSMIC/Wayland desktops via local Ollama LLM. No cloud, no data leaving your machine.</p>
+        <div class="hero-actions">
+            <a href="https://github.com/TheAnonymous/Autocorrect" class="btn btn-primary">View on GitHub</a>
+            <a href="#quick-start" class="btn btn-secondary">Quick Start</a>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="install-bar">
+        <code>curl -fsSL https://raw.githubusercontent.com/TheAnonymous/Autocorrect/main/install.sh | bash</code>
+    </div>
+</div>
+
+<div class="container">
+    <section id="how-it-works">
+        <h2>How It Works</h2>
+        <div class="workflow">
+            <div class="step">
+                <div class="icon">📝</div>
+                <div class="label">Select text</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="step">
+                <div class="icon">⌨️</div>
+                <div class="label">Press Super+Shift+G</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="step">
+                <div class="icon">🤖</div>
+                <div class="label">Ollama corrects</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="step">
+                <div class="icon">✅</div>
+                <div class="label">Text replaced</div>
+            </div>
+        </div>
+    </section>
+
+    <section id="features">
+        <h2>Features</h2>
+        <div class="features">
+            <div class="feature">
+                <h3>🌐 System-wide</h3>
+                <p>Works in any app — browser, editor, chat, terminal.</p>
+            </div>
+            <div class="feature">
+                <h3>🔒 100% Local</h3>
+                <p>Ollama runs on your machine. No data ever leaves it.</p>
+            </div>
+            <div class="feature">
+                <h3>💾 On-demand</h3>
+                <p>Start Ollama only when needed. Saves ~4GB RAM.</p>
+            </div>
+            <div class="feature">
+                <h3>🎯 Tray Icon</h3>
+                <p>System tray indicator to start/stop Ollama with one click.</p>
+            </div>
+            <div class="feature">
+                <h3>🖥️ Terminal UI</h3>
+                <p>Full management via dialog/whiptail menu in the terminal.</p>
+            </div>
+            <div class="feature">
+                <h3>🌍 i18n</h3>
+                <p>German and English support, auto-detected via $LANG.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="models">
+        <h2>Model Selection</h2>
+        <p style="color: var(--text-muted); margin-bottom: 24px;">Choose the right model for your hardware. All available via <code>ollama pull</code>.</p>
+        <div class="models">
+            <div class="model-card">
+                <h3>Qwen 3.5 0.8B</h3>
+                <div class="ram">~1 GB</div>
+                <div class="desc">Ultra-lightweight, runs on anything</div>
+                <span class="badge badge-fast">Fast</span>
+            </div>
+            <div class="model-card">
+                <h3>Qwen 3.5 2B</h3>
+                <div class="ram">~2.7 GB</div>
+                <div class="desc">Best quality-per-watt, SOTA for size</div>
+                <span class="badge badge-sota">SOTA 2026</span>
+            </div>
+            <div class="model-card">
+                <h3>Gemma 4 2B</h3>
+                <div class="ram">~4 GB</div>
+                <div class="desc">High quality, Google's latest</div>
+                <span class="badge badge-default">Default</span>
+            </div>
+        </div>
+    </section>
+
+    <section id="quick-start">
+        <h2>Quick Start</h2>
+        <h3>1. Install</h3>
+        <pre style="background: var(--bg-card); padding: 16px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border);"><code>curl -fsSL https://raw.githubusercontent.com/TheAnonymous/Autocorrect/main/install.sh | bash</code></pre>
+
+        <h3>2. What gets set up</h3>
+        <ul style="color: var(--text-muted); padding-left: 24px; margin: 12px 0;">
+            <li>System dependencies (wl-clipboard, wtype, jq, curl, libnotify)</li>
+            <li>Ollama + Gemma 4 model download</li>
+            <li>Keyboard shortcut: <code>Super+Shift+G</code></li>
+            <li>System tray autostart for Ollama management</li>
+        </ul>
+
+        <h3>3. Use it</h3>
+        <p style="color: var(--text-muted);">Select any text in any application, press <code>Super+Shift+G</code>, and watch the correction appear.</p>
+    </section>
+
+    <section id="components">
+        <h2>Components</h2>
+        <table>
+            <thead>
+                <tr><th>File</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><code>autocorrect.sh</code></td><td>Core script — copy, correct, paste</td></tr>
+                <tr><td><code>ollama-manager.sh</code></td><td>CLI — start/stop/status Ollama</td></tr>
+                <tr><td><code>ollama-tui.sh</code></td><td>Terminal UI — menu-based management</td></tr>
+                <tr><td><code>ollama-tray.py</code></td><td>System tray — icon in COSMIC panel</td></tr>
+                <tr><td><code>install.sh</code></td><td>One-shot installer</td></tr>
+                <tr><td><code>i18n.sh</code></td><td>Translations (de/en)</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section id="configuration">
+        <h2>Configuration</h2>
+        <table>
+            <thead>
+                <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><code>AUTOCORRECT_MODEL</code></td><td><code>gemma4:e2b</code></td><td>Ollama model to use</td></tr>
+                <tr><td><code>AUTOCORRECT_OLLAMA_URL</code></td><td><code>http://localhost:11434/api/generate</code></td><td>Ollama API endpoint</td></tr>
+                <tr><td><code>AUTOCORRECT_DELAY</code></td><td><code>0.2</code></td><td>Delay between copy/paste (seconds)</td></tr>
+                <tr><td><code>AUTOCORRECT_CURL_TIMEOUT</code></td><td><code>60</code></td><td>Timeout for Ollama request (seconds)</td></tr>
+                <tr><td><code>AUTOCORRECT_DEBUG</code></td><td><code>0</code></td><td>Enable debug output (<code>1</code>)</td></tr>
+            </tbody>
+        </table>
+    </section>
+</div>
+
+<footer>
+    <div class="container">
+        <p>Built with ❤️ for the COSMIC desktop &middot; <a href="https://github.com/TheAnonymous/Autocorrect">GitHub</a> &middot; MIT License</p>
+    </div>
+</footer>
+
+</body>
+</html>
