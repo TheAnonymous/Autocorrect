@@ -242,7 +242,7 @@ if [ -d "$COSMIC_CONFIG_DIR" ] || command -v cosmic-comp &> /dev/null; then
         
         if [ -f "$COSMIC_CUSTOM_FILE" ]; then
             if grep -q "^}" "$COSMIC_CUSTOM_FILE"; then
-                sed -i "s/^}/    $SHORTCUT_ENTRY,\n}/" "$COSMIC_CUSTOM_FILE"
+                sed -i "s|^}|    $SHORTCUT_ENTRY,\n}|" "$COSMIC_CUSTOM_FILE"
                 SHORTCUT_ADDED=true
             fi
         else
