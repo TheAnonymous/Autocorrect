@@ -166,7 +166,7 @@ action_pull_model() {
     local model_name
     model_name=$("$DIALOG_CMD" --title "$(tr "menu_pull")" \
         --inputbox "$(tr "pull_prompt")" \
-        10 60 "gemma4:e2b" 3>&1 1>&2 2>&3) || return 0
+        10 60 "qwen3.5:2b" 3>&1 1>&2 2>&3) || return 0
 
     if [[ -z "$model_name" ]]; then
         return
@@ -296,16 +296,16 @@ action_model_select() {
         --menu "$(tr "model_info" "$current_model")" \
         14 60 4 \
         "1" "$(tr "model_gemma")" \
-        "2" "$(tr "model_qwen")" \
-        "3" "$(tr "model_llama")" \
+        "2" "$(tr "model_qwen_small")" \
+        "3" "$(tr "model_qwen_med")" \
         "4" "$(tr "model_custom")" \
         3>&1 1>&2 2>&3) || return 0
 
     local new_model=""
     case "$choice" in
         1) new_model="gemma4:e2b" ;;
-        2) new_model="qwen2.5:0.5b" ;;
-        3) new_model="llama3.2:1b" ;;
+        2) new_model="qwen3.5:0.8b" ;;
+        3) new_model="qwen3.5:2b" ;;
         4)
             new_model=$("$DIALOG_CMD" --title "$(tr "model_select")" \
                 --inputbox "$(tr "model_custom_prompt")" \
