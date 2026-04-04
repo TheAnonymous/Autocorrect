@@ -151,7 +151,7 @@ TUI_PATH="$INSTALL_DIR/ollama_tui.py"
 TRAY_PATH="$INSTALL_DIR/ollama-tray.py"
 I18N_PATH="$INSTALL_DIR/i18n.py"
 
-echo -e "\n${GREEN}[4/6] Installiere Skripte nach /home/jodie/.local/bin...${NC}"
+echo -e "\n${GREEN}[4/6] Installiere Skripte nach $INSTALL_DIR...${NC}"
 cp "$SCRIPT_DIR/autocorrect.sh" "$SCRIPT_PATH"
 chmod +x "$SCRIPT_PATH"
 echo "   $SCRIPT_PATH"
