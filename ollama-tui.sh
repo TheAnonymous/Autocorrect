@@ -272,7 +272,7 @@ action_autocorrect_status() {
         message+="$(tr "ac_deps_missing")\n$missing_deps"
     fi
 
-    local shortcut_file="$HOME/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom.ron"
+    local shortcut_file="$HOME/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom"
     if [[ -f "$shortcut_file" ]] && grep -q "autocorrect-gemma" "$shortcut_file" 2>/dev/null; then
         message+="\n$(tr "ac_shortcut_yes")"
     else

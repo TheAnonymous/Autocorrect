@@ -144,15 +144,15 @@ ollama pull "$MODEL"
 
 INSTALL_DIR="$HOME/.local/bin"
 mkdir -p "$INSTALL_DIR"
-SCRIPT_PATH="$INSTALL_DIR/autocorrect.py"
+SCRIPT_PATH="$INSTALL_DIR/autocorrect-gemma.sh"
 UNDO_PATH="$INSTALL_DIR/autocorrect_undo.py"
 MANAGER_PATH="$INSTALL_DIR/ollama_manager.py"
 TUI_PATH="$INSTALL_DIR/ollama_tui.py"
 TRAY_PATH="$INSTALL_DIR/ollama-tray.py"
 I18N_PATH="$INSTALL_DIR/i18n.py"
 
-echo -e "\n${GREEN}[4/6] $(tr "inst_copy_scripts" "$INSTALL_DIR")${NC}"
-cp "$SCRIPT_DIR/autocorrect.py" "$SCRIPT_PATH"
+echo -e "\n${GREEN}[4/6] Installiere Skripte nach /home/jodie/.local/bin...${NC}"
+cp "$SCRIPT_DIR/autocorrect.sh" "$SCRIPT_PATH"
 chmod +x "$SCRIPT_PATH"
 echo "   $SCRIPT_PATH"
 
@@ -232,39 +232,60 @@ fi
 echo -e "\n${GREEN}[5/6] $(tr "inst_setup_shortcut")${NC}"
 
 COSMIC_CONFIG_DIR="$HOME/.config/cosmic/com.system76.CosmicSettings.Shortcuts"
-COSMIC_CUSTOM_FILE="$COSMIC_CONFIG_DIR/v1/custom.ron"
+COSMIC_CUSTOM_FILE="$COSMIC_CONFIG_DIR/v1/custom"
 
 SHORTCUT_ADDED=false
 
 if [ -d "$COSMIC_CONFIG_DIR" ] || command -v cosmic-comp &> /dev/null; then
     mkdir -p "$COSMIC_CONFIG_DIR/v1"
     
-    AC_ENTRY="autocorrect.py"
-    UNDO_ENTRY="autocorrect_undo.py"
-    HAS_AC=$(grep -c "autocorrect.py" "$COSMIC_CUSTOM_FILE" 2>/dev/null || echo 0)
-    HAS_UNDO=$(grep -c "autocorrect_undo.py" "$COSMIC_CUSTOM_FILE" 2>/dev/null || echo 0)
+    HAS_AC=0
+    HAS_UNDO=0
+    if [ -f "$COSMIC_CUSTOM_FILE" ]; then
+        HAS_AC=$(grep -c "autocorrect-gemma" "$COSMIC_CUSTOM_FILE" 2>/dev/null || true)
+        HAS_UNDO=$(grep -c "autocorrect_undo" "$COSMIC_CUSTOM_FILE" 2>/dev/null || true)
+        HAS_AC=${HAS_AC:-0}
+        HAS_UNDO=${HAS_UNDO:-0}
+    fi
 
     if [ "$HAS_AC" -gt 0 ] && [ "$HAS_UNDO" -gt 0 ]; then
         echo -e "   ${YELLOW}$(tr "inst_shortcut_exists")${NC}"
         SHORTCUT_ADDED=true
     else
-        ENTRIES=""
-        if [ "$HAS_AC" -eq 0 ]; then
-            ENTRIES+="    (modifiers: [Super, Shift], key: \"g\"): Spawn(\"python3 $SCRIPT_PATH\"),\n"
-        fi
-        if [ "$HAS_UNDO" -eq 0 ]; then
-            ENTRIES+="    (modifiers: [Super, Shift], key: \"u\"): Spawn(\"python3 $UNDO_PATH\"),\n"
+        if [ -f "$COSMIC_CUSTOM_FILE" ]; then
+            CONTENT=$(sed '$ d' "$COSMIC_CUSTOM_FILE")
+        else
+            CONTENT="{"
         fi
         
-        if [ -f "$COSMIC_CUSTOM_FILE" ]; then
-            if grep -q "^}" "$COSMIC_CUSTOM_FILE"; then
-                sed -i "s|^}|$(echo -e "$ENTRIES")\n}|" "$COSMIC_CUSTOM_FILE"
-                SHORTCUT_ADDED=true
-            fi
-        else
-            echo -e "{\n$(echo -e "$ENTRIES")\n}" > "$COSMIC_CUSTOM_FILE"
-            SHORTCUT_ADDED=true
+        if [ "$HAS_AC" -eq 0 ]; then
+            CONTENT="$CONTENT
+    (
+        modifiers: [
+            Super,
+            Shift,
+        ],
+        key: \"g\",
+        description: Some(\"Gemma Autokorrektur\"),
+    ): Spawn(\"$SCRIPT_PATH\"),"
         fi
+        
+        if [ "$HAS_UNDO" -eq 0 ]; then
+            CONTENT="$CONTENT
+    (
+        modifiers: [
+            Super,
+            Shift,
+        ],
+        key: \"u\",
+        description: Some(\"Gemma Undo\"),
+    ): Spawn(\"$UNDO_PATH\"),"
+        fi
+        
+        CONTENT="$CONTENT
+}"
+        echo "$CONTENT" > "$COSMIC_CUSTOM_FILE"
+        SHORTCUT_ADDED=true
         
         if [ "$SHORTCUT_ADDED" = true ]; then
             echo -e "   ${GREEN}$(tr "inst_shortcut_added")${NC}"
