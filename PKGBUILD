@@ -1,5 +1,5 @@
 # Maintainer: TheAnonymous <github.com/TheAnonymous>
-pkgname=autocorrect-git
+pkgname=ollama-autocorrect-git
 pkgver=r0.0.0
 pkgrel=1
 pkgdesc="System-wide AI autocorrection for Wayland desktops via local Ollama LLM"
@@ -11,8 +11,8 @@ optdepends=('python-pystray: tray icon support'
             'python-pillow: tray icon support'
             'dialog: terminal UI support')
 makedepends=('git')
-provides=('autocorrect')
-conflicts=('autocorrect')
+provides=('ollama-autocorrect')
+conflicts=('ollama-autocorrect')
 source=("git+https://github.com/TheAnonymous/Autocorrect.git")
 sha256sums=('SKIP')
 
