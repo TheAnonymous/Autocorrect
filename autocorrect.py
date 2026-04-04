@@ -44,13 +44,11 @@ def log_msg(msg: str) -> None:
 
 def notify_err(msg: str) -> None:
     log_msg(f"ERROR: {msg}")
-    subprocess.run(["notify-send", tr("app_name"), msg, "-u", "critical"],
-                   capture_output=True)
+    subprocess.run(["notify-send", tr("app_name"), msg, "-u", "critical"], capture_output=True)
 
 
 def notify_info(msg: str) -> None:
-    subprocess.run(["notify-send", tr("app_name"), msg, "-t", "2000"],
-                   capture_output=True)
+    subprocess.run(["notify-send", tr("app_name"), msg, "-t", "2000"], capture_output=True)
 
 
 def log_debug(msg: str) -> None:
@@ -63,21 +61,34 @@ def detect_language(text: str) -> str:
     lower = text.lower()
     score = 0
 
-    if re.search(r'[äöüß]', lower):
+    if re.search(r"[äöüß]", lower):
         score += 3
 
-    for word in ["der", "die", "das", "und", "ist", "ein", "eine", "nicht", "mit", "von", "dem", "den"]:
-        if re.search(rf'\b{word}\b', lower):
+    for word in [
+        "der",
+        "die",
+        "das",
+        "und",
+        "ist",
+        "ein",
+        "eine",
+        "nicht",
+        "mit",
+        "von",
+        "dem",
+        "den",
+    ]:
+        if re.search(rf"\b{word}\b", lower):
             score += 1
 
     for word in ["the", "and", "is", "not", "with", "from", "that", "this", "have"]:
-        if re.search(rf'\b{word}\b', lower):
+        if re.search(rf"\b{word}\b", lower):
             score -= 1
 
     return "de" if score > 0 else "en"
 
 
-def get_system_prompt(lang: str) -> str:
+def get_system_prompt() -> str:
     return "You are a pure autocorrection tool. Correct the text for spelling and grammar. Keep the original language. Output ONLY the corrected text, without introduction, explanations, or quotation marks."
 
 
@@ -92,7 +103,8 @@ def check_ollama() -> None:
     try:
         result = subprocess.run(
             ["curl", "-sf", "--max-time", "5", f"{OLLAMA_BASE}/api/tags"],
-            capture_output=True, timeout=7
+            capture_output=True,
+            timeout=7,
         )
         if result.returncode != 0:
             notify_err(tr("err_ollama_unreachable", OLLAMA_URL))
@@ -106,7 +118,9 @@ def is_model_loaded() -> bool:
     try:
         result = subprocess.run(
             ["curl", "-sf", "--max-time", "2", f"{OLLAMA_BASE}/api/ps"],
-            capture_output=True, text=True, timeout=4
+            capture_output=True,
+            text=True,
+            timeout=4,
         )
         if result.returncode == 0 and result.stdout:
             data = json.loads(result.stdout)
@@ -117,8 +131,7 @@ def is_model_loaded() -> bool:
 
 
 def wtype_ctrl_key(key: str) -> None:
-    subprocess.run(["wtype", "-M", "ctrl", "-P", key, "-p", key, "-m", "ctrl"],
-                   capture_output=True)
+    subprocess.run(["wtype", "-M", "ctrl", "-P", key, "-p", key, "-m", "ctrl"], capture_output=True)
 
 
 def get_clipboard_text() -> tuple[str, Optional[str]]:
@@ -138,11 +151,11 @@ def get_clipboard_text() -> tuple[str, Optional[str]]:
 def clean_response(text: str) -> str:
     text = text.strip()
 
-    text = re.sub(r'^```(?:\w+)?\s*\n?', '', text)
-    text = re.sub(r'\n?```\s*$', '', text)
+    text = re.sub(r"^```(?:\w+)?\s*\n?", "", text)
+    text = re.sub(r"\n?```\s*$", "", text)
 
-    text = re.sub(r'^[""\u201e]', '', text)
-    text = re.sub(r'[""\u201c]$', '', text)
+    text = re.sub(r'^[""\u201e]', "", text)
+    text = re.sub(r'[""\u201c]$', "", text)
 
     text = text.strip()
     return text
@@ -154,12 +167,26 @@ def send_request(payload: dict, attempt: int = 0) -> tuple[Optional[dict], Optio
 
     try:
         curl_result = subprocess.run(
-            ["curl", "-s", "-w", "%{http_code}", "-o", tmp_path,
-             "--max-time", str(CURL_TIMEOUT),
-             "-X", "POST", OLLAMA_URL,
-             "-H", "Content-Type: application/json",
-             "-d", json.dumps(payload)],
-            capture_output=True, text=True, timeout=CURL_TIMEOUT + 10
+            [
+                "curl",
+                "-s",
+                "-w",
+                "%{http_code}",
+                "-o",
+                tmp_path,
+                "--max-time",
+                str(CURL_TIMEOUT),
+                "-X",
+                "POST",
+                OLLAMA_URL,
+                "-H",
+                "Content-Type: application/json",
+                "-d",
+                json.dumps(payload),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=CURL_TIMEOUT + 10,
         )
         http_code = curl_result.stdout.strip()[-3:]
 
@@ -206,14 +233,14 @@ def main() -> None:
     else:
         notify_info(tr("correcting"))
 
-    system_instruction = get_system_prompt(detected_lang)
+    system_instruction = get_system_prompt()
 
     payload = {
         "model": MODEL,
         "system": system_instruction,
         "prompt": original_text,
         "stream": False,
-        "options": {"temperature": 0}
+        "options": {"temperature": 0},
     }
 
     response_data = None
@@ -225,7 +252,7 @@ def main() -> None:
             if response_data is not None:
                 break
             if http_code == "503" or http_code == "429":
-                wait_time = (2 ** attempt) * 2
+                wait_time = (2**attempt) * 2
                 log_debug(f"Ollama busy (HTTP {http_code}), retrying in {wait_time}s...")
                 time.sleep(wait_time)
                 continue
@@ -235,14 +262,14 @@ def main() -> None:
         except subprocess.TimeoutExpired:
             last_error = "timeout"
             if attempt < MAX_RETRIES - 1:
-                wait_time = (2 ** attempt) * 2
+                wait_time = (2**attempt) * 2
                 log_debug(f"Request timed out, retrying in {wait_time}s...")
                 time.sleep(wait_time)
             continue
         except Exception as e:
             last_error = str(e)
             if attempt < MAX_RETRIES - 1:
-                wait_time = (2 ** attempt) * 2
+                wait_time = (2**attempt) * 2
                 log_debug(f"Error: {e}, retrying in {wait_time}s...")
                 time.sleep(wait_time)
             continue
@@ -283,5 +310,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

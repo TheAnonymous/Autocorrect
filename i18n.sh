@@ -156,6 +156,8 @@ inst_ollama_err) echo "Fehler: Ollama laeuft nicht." ;;
                 model_info) echo "Aktuelles Modell: $2" ;;
                 model_changed) echo "Modell geändert zu: $2" ;;
                 model_saved) echo "Modell gespeichert in ~/.config/autocorrect/model" ;;
+                undo_nothing) echo "Nichts zum Wiederherstellen." ;;
+                undo_done) echo "Original wiederhergestellt." ;;
                 *) echo "$key" ;;
             esac
             ;;
@@ -296,6 +298,8 @@ inst_ollama_err) echo "Fehler: Ollama laeuft nicht." ;;
                 model_info) echo "Current model: $2" ;;
                 model_changed) echo "Model changed to: $2" ;;
                 model_saved) echo "Model saved to ~/.config/autocorrect/model" ;;
+                undo_nothing) echo "Nothing to undo." ;;
+                undo_done) echo "Original restored." ;;
                 *) echo "$key" ;;
             esac
             ;;

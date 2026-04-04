@@ -9,12 +9,7 @@ MODEL_CONFIG="$HOME/.config/autocorrect/model"
 if [[ -f "$MODEL_CONFIG" ]]; then
     MODEL="$(cat "$MODEL_CONFIG")"
 else
-    MODEL_CONFIG="$HOME/.config/autocorrect/model"
-if [[ -f "$MODEL_CONFIG" ]]; then
-    MODEL="$(cat "$MODEL_CONFIG")"
-else
     MODEL="${AUTOCORRECT_MODEL:-gemma4:e2b}"
-fi
 fi
 OLLAMA_BASE="${AUTOCORRECT_OLLAMA_BASE:-http://localhost:11434}"
 OLLAMA_URL="$OLLAMA_BASE/api/generate"
@@ -111,6 +106,8 @@ if [[ -z "$ORIGINAL_TEXT" ]]; then
 fi
 
 log_msg "Input: ${ORIGINAL_TEXT:0:200}..."
+
+echo "$ORIGINAL_TEXT" > "$STATE_DIR/last_original.txt"
 
 DETECTED_LANG=$(detect_language "$ORIGINAL_TEXT")
 log_debug "Detected language: $DETECTED_LANG"
