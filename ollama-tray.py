@@ -50,7 +50,7 @@ def _set_model(name: str) -> None:
     MODEL_CONFIG.write_text(name)
     subprocess.run(
         ["notify-send", tr("app_name"), tr("model_changed", name), "-t", "2000"],
-        capture_output=True
+        capture_output=True,
     )
     if _icon:
         _icon.update_menu()
@@ -59,16 +59,8 @@ def _set_model(name: str) -> None:
 def _action_model_preset(name: str):
     def _inner() -> None:
         _set_model(name)
+
     return _inner
-
-
-def _action_model_custom() -> None:
-    subprocess.Popen(
-        [sys.executable, str(TUI_SCRIPT)],
-        start_new_session=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
 
 
 def _make_icon(color: str) -> Image.Image:
@@ -92,7 +84,9 @@ def _run_manager(action: str) -> str:
     try:
         result = subprocess.run(
             [sys.executable, str(SCRIPT_DIR / "ollama_manager.py"), action],
-            capture_output=True, text=True, timeout=60
+            capture_output=True,
+            text=True,
+            timeout=60,
         )
         return result.stdout.strip() or result.stderr.strip() or "done"
     except Exception as e:
@@ -158,18 +152,8 @@ def _build_menu() -> Menu:
         MenuItem(tr("tray_restart"), _action_restart, enabled=_OLLAMA_RUNNING),
         MenuItem("---", None),
         MenuItem(
-            f"{tr('menu_model')}: {current_model}",
-            None,
-            enabled=False,
-        ),
-        MenuItem(
             tr("menu_model"),
-            None,
-            menu=Menu(
-                *model_items,
-                MenuItem("---", None),
-                MenuItem(tr("model_custom"), _action_model_custom),
-            ),
+            Menu(*model_items),
         ),
         MenuItem("---", None),
         MenuItem(tr("tray_open_tui"), _action_open_tui),
